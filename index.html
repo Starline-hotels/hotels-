@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotel Management System</title>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-image: url('Image20241114202921.jpg'); /* Use the uploaded image as the background */
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+        }
+
+        .center-container {
+            max-width: 500px;
+            width: 100%;
+            padding: 20px;
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .form-container {
+            display: none;
+            margin-top: 20px;
+        }
+
+        input[type="text"], input[type="password"], input[type="date"], select {
+            width: 90%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            margin: 10px;
+            padding: 10px 20px;
+            background-color: grey;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: darkgrey;
+        }
+
+        #guestList {
+            text-align: left;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="center-container">
+        <div id="mainMenu">
+            <h1>Starline Oasis</h1>
+            <p>RESERVATIONS</p>
+            <button onclick="showStaffForm()">Proceed as Staff</button>
+        </div>
+
+        <div id="staffForm" class="form-container">
+            <h2>Staff Login</h2>
+            <label for="staffName">Staff Name:</label>
+            <input type="text" id="staffName" placeholder="Enter staff name"><br>
+
+            <label for="securityCode">Security Code:</label>
+            <input type="password" id="securityCode" placeholder="Enter security code"><br>
+
+            <button onclick="staffLogin()">Login</button>
+            <button onclick="exitStaff()">Exit</button>
+        </div>
+
+        <div id="staffDashboard" class="form-container">
+            <h2>Staff Dashboard</h2>
+            <button onclick="showRegisterGuestForm()">Register New Guest</button>
+            <button onclick="viewGuests()">View All Guests</button>
+            <button onclick="checkoutGuest()">Checkout Guest</button>
+            <button onclick="exportToExcel()">Export to Excel</button>
+            <button onclick="exitStaff()">Exit</button>
+
+            <div id="guestList"></div>
+        </div>
+
+        <div id="registerGuestForm" class="form-container">
+            <h2>Register New Guest</h2>
+            <label for="guestName">Guest Name:</label>
+            <input type="text" id="guestName" placeholder="Enter guest name"><br>
+
+            <label for="guestContact">Contact Number:</label>
+            <input type="text" id="guestContact" placeholder="Enter contact number"><br>
+
+            <label for="guestID">ID Number:</label>
+            <input type="text" id="guestID" placeholder="Enter ID number"><br>
+
+            <label for="roomNumber">Choose Room:</label>
+            <select id="roomNumber"></select><br>
+
+            <label for="checkInDate">Check-In Date:</label>
+            <input type="date" id="checkInDate"><br>
+
+            <label for="checkOutDate">Check-Out Date:</label>
+            <input type="date" id="checkOutDate"><br>
+
+            <label for="discount">Discount Percentage (Optional):</label>
+            <input type="text" id="discount" placeholder="Enter discount percentage"><br>
+
+            <button onclick="reserveRoom()">Reserve Room</button>
+            <button onclick="cancelReservation()">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        const totalRooms = 20;
+        let guestDetails = [];
+        const roomPricePerDay = 300; // Hotel charge per day in SAR
+
+        function showStaffForm() {
+            document.getElementById('mainMenu').style.display = 'none';
+            document.getElementById('staffForm').style.display = 'block';
+        }
+
+        function staffLogin() {
+            const staffName = document.getElementById('staffName').value;
+            const securityCode = document.getElementById('securityCode').value;
+            if (securityCode === "2805") {
+                alert("Welcome back, " + staffName + "!");
+                document.getElementById('staffForm').style.display = 'none';
+                document.getElementById('staffDashboard').style.display = 'block';
+            } else {
+                alert("Incorrect security code!");
+            }
+        }
+
+        function exitStaff() {
+            document.getElementById('staffForm').style.display = 'none';
+            document.getElementById('mainMenu').style.display = 'block';
+        }
+
+        function showRegisterGuestForm() {
+            document.getElementById('staffDashboard').style.display = 'none';
+            document.getElementById('registerGuestForm').style.display = 'block';
+
+            const roomSelect = document.getElementById('roomNumber');
+            roomSelect.innerHTML = '';
+            for (let i = 1; i <= totalRooms; i++) {
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = `Room ${i}`;
+                roomSelect.appendChild(option);
+            }
+        }
+
+        function reserveRoom() {
+            const guestName = document.getElementById('guestName').value;
+            const guestContact = document.getElementById('guestContact').value;
+            const guestID = document.getElementById('guestID').value;
+            const roomNumber = parseInt(document.getElementById('roomNumber').value);
+            const checkInDate = document.getElementById('checkInDate').value;
+            const checkOutDate = document.getElementById('checkOutDate').value;
+            const discount = document.getElementById('discount').value;
+
+            if (!guestName || !guestContact || !guestID || !checkInDate || !checkOutDate) {
+                alert("All fields are required.");
+                return;
+            }
+
+            if (new Date(checkInDate) >= new Date(checkOutDate)) {
+                alert("Check-out date must be after check-in date.");
+                return;
+            }
+
+            const roomConflict = guestDetails.some(guest => 
+                guest.room === roomNumber && 
+                !(new Date(checkInDate) >= new Date(guest.checkOut))
+            );
+
+            if (roomConflict) {
+                alert("This room is already reserved during the selected dates.");
+                return;
+            }
+
+            guestDetails.push({
+                name: guestName,
+                contact: guestContact,
+                id: guestID,
+                room: roomNumber,
+                checkIn: checkInDate,
+                checkOut: checkOutDate,
+                discount: discount ? parseFloat(discount) : 0,
+                checkedOut: false // Default status
+            });
+
+            alert(`${guestName} has been registered in Room ${roomNumber} from ${checkInDate} to ${checkOutDate}.`);
+            cancelReservation();
+        }
+
+        function cancelReservation() {
+            document.getElementById('registerGuestForm').style.display = 'none';
+            document.getElementById('staffDashboard').style.display = 'block';
+        }
+
+        function viewGuests() {
+            const guestListContainer = document.getElementById('guestList');
+            const activeGuests = guestDetails.filter(guest => !guest.checkedOut); // Filter out checked-out guests
+
+            if (activeGuests.length === 0) {
+                guestListContainer.innerHTML = "<h3>No active guests currently registered.</h3>";
+            } else {
+                let guestListHtml = '<h3>All Active Guests:</h3><ul>';
+                activeGuests.forEach(guest => {
+                    guestListHtml += `<li>Name: ${guest.name}, Room: ${guest.room}, Contact: ${guest.contact}, ID: ${guest.id}, Check-in: ${guest.checkIn}, Check-out: ${guest.checkOut}</li>`;
+                });
+                guestListHtml += '</ul>';
+                guestListContainer.innerHTML = guestListHtml;
+            }
+        }
+
+        function checkoutGuest() {
+            const roomNumber = parseInt(prompt("Enter the room number to checkout:"));
+            const guestIndex = guestDetails.findIndex(guest => guest.room === roomNumber && !guest.checkedOut);
+
+            if (guestIndex !== -1) {
+                const guest = guestDetails[guestIndex];
+                const checkInDate = new Date(guest.checkIn);
+                const checkOutDate = new Date(guest.checkOut);
+                const numberOfDays = Math.ceil((checkOutDate - checkInDate) / (1000 * 3600 * 24));
+
+                let totalAmount = numberOfDays * roomPricePerDay;
+
+                if (guest.discount > 0) {
+                    const discountAmount = (guest.discount / 100) * totalAmount;
+                    totalAmount -= discountAmount;
+                }
+
+                alert(`${guest.name} is checking out from Room ${roomNumber}. Total amount: SAR ${totalAmount.toFixed(2)}.`);
+
+                guestDetails[guestIndex].checkedOut = true;
+
+                viewGuests();
+            } else {
+                alert("Room not found or already checked out.");
+            }
+        }
+
+        function exportToExcel() {
+            if (guestDetails.length === 0) {
+                alert("No guest data to export!");
+                return;
+            }
+
+            const data = guestDetails.map(guest => ({
+                Name: guest.name,
+                Contact: guest.contact,
+                ID: guest.id,
+                Room: guest.room,
+                "Check-in": guest.checkIn,
+                "Check-out": guest.checkOut,
+                Discount: guest.discount,
+                Status: guest.checkedOut ? "Checked Out" : "Active" // Include status in Excel only
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Guest Details");
+
+            XLSX.writeFile(workbook, "Guest_Details.xlsx");
+        }
+    </script>
+</body>
+</html>
